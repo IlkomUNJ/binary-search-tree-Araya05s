@@ -1,6 +1,8 @@
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
+use super::tree::{Node, NodeLink};
+
 pub type BstNodeLink = Rc<RefCell<BstNode>>;
 pub type WeakBstNodeLink = Weak<RefCell<BstNode>>;
 
@@ -78,6 +80,155 @@ impl BstNode {
         None
     }
 
+    //Iterative insert Function
+    pub fn tree_insert_iterative(current_node_link: &BstNodeLink, value: i32) {
+        let z_node = BstNode::new_bst_nodelink(value);
+        let mut y_node: Option<Rc<RefCell<BstNode>>> = None;
+        let mut x_node: Option<Rc<RefCell<BstNode>>> = Some(Rc::clone(current_node_link)); 
+        let z_value = z_node.borrow().key.unwrap();
+        
+        loop {
+            let current_node = match x_node {
+                Some(ref node) => Rc::clone(node),
+                None => break,
+            };
+            let current_rc = current_node.borrow();
+            
+            y_node = Some(Rc::clone(&current_node));
+
+            if let Some(x_value) = current_rc.key {
+                if z_value < x_value {
+                    x_node = current_rc.left.clone();
+                } else {
+                    x_node = current_rc.right.clone();
+                }
+            } else {
+                break;
+            }
+        }
+        
+        if let Some(parent_node_rc) = y_node {
+            let mut x_parent = parent_node_rc.borrow_mut();
+            let y_value = x_parent.key.unwrap();
+
+            println!("Inserting {} under parent {}", z_value, y_value);
+            
+            if z_value < y_value {
+                println!("Going left");
+                x_parent.left = Some(Rc::clone(&z_node));
+            z_node.borrow_mut().parent = Some(BstNode::downgrade(&parent_node_rc));
+            } else {
+                println!("Going right");
+                x_parent.right = Some(Rc::clone(&z_node));
+            z_node.borrow_mut().parent = Some(BstNode::downgrade(&parent_node_rc));
+            }
+        }
+    }
+
+    //Transplant
+    pub fn transplant(unode: &BstNodeLink, vnode: &BstNodeLink) {
+        let parent_opt = {
+            let unode_ref = unode.borrow();
+            unode_ref.parent.clone()
+        };
+
+        if let Some(parent_weak) = parent_opt {
+            if let Some(parent_rc) = parent_weak.upgrade() {
+                let mut parent_node = parent_rc.borrow_mut();
+    
+
+                if let Some(left_child) = &parent_node.left {
+                    if Rc::ptr_eq(left_child, unode) {
+                        parent_node.left = Some(Rc::clone(vnode));
+                    } else {
+                        parent_node.right = Some(Rc::clone(vnode));
+                    }
+                } else {
+                    parent_node.right = Some(Rc::clone(vnode));
+                }
+
+                vnode.borrow_mut().parent = Some(Rc::downgrade(&parent_rc));
+            }
+        } else {
+            let vnode_borrow = vnode.borrow();
+            let mut unode_borrow = unode.borrow_mut();
+
+            unode_borrow.key = vnode_borrow.key.clone();
+            unode_borrow.left = vnode_borrow.left.clone();
+            unode_borrow.right = vnode_borrow.right.clone();
+
+            if let Some(ref left) = unode_borrow.left {
+                left.borrow_mut().parent = Some(Rc::downgrade(unode));
+            }
+
+            if let Some(ref right) = unode_borrow.right {
+                right.borrow_mut().parent = Some(Rc::downgrade(unode));
+            }
+    
+            unode_borrow.parent = None;
+        }
+    }
+
+    pub fn deletion(current_node_link: &BstNodeLink, value: i32) {
+        let z_node_opt = {
+            let root_ref = current_node_link.borrow();
+            BstNode::tree_search(&root_ref, &value)
+        };
+
+        if let Some(z_node) = z_node_opt {
+            let z_node_left = z_node.borrow().left.clone();
+            let z_node_right = z_node.borrow().right.clone();
+
+            println!("Deleting node with value of {}...", value);
+
+            if z_node_left.is_none() && z_node_right.is_none() {
+                let parent_opt = z_node.borrow().parent.clone();
+                if let Some(parent_weak) = parent_opt {
+                    if let Some(parent_rc) = parent_weak.upgrade() {
+                        let mut parent_node = parent_rc.borrow_mut();
+                        if Rc::ptr_eq(&parent_node.left.as_ref().unwrap(), &z_node) {
+                            parent_node.left = None;
+                        } else {
+                            parent_node.right = None;
+                        }
+                    }
+                }
+                println!("Deletion Success!");
+            } else if z_node_left.is_none() {
+                if let Some(right_node) = z_node_right {
+                    BstNode::transplant(&z_node, &right_node);
+                    println!("Deletion Success!");
+                }
+            } else if z_node_right.is_none() {
+                if let Some(left_node) = z_node_left {
+                    BstNode::transplant(&z_node, &left_node);
+                }
+                println!("Deletion Success!");
+            } else {
+                if let Some(right_child) = z_node_right {
+                    let successor = BstNode::minimum(&right_child.borrow());
+
+                    if let Some(successor_left) = successor.borrow().left.clone() {
+                        BstNode::transplant(&successor, &successor_left);
+                    }
+
+                    BstNode::transplant(&z_node, &successor);
+
+                    successor.borrow_mut().left = z_node.borrow().left.clone();
+                    if let Some(ref left_node) = z_node.borrow().left {
+                        left_node.borrow_mut().parent = Some(Rc::downgrade(&successor));
+                    }
+
+                    successor.borrow_mut().right = z_node.borrow().right.clone();
+                    if let Some(ref right_node) = z_node.borrow().right {
+                        right_node.borrow_mut().parent = Some(Rc::downgrade(&successor));
+                    }
+                    println!("Deletion Success!");
+                }
+            }
+        }
+    }
+
     /**seek minimum by recurs
      * in BST minimum always on the left
      */
@@ -108,6 +259,16 @@ impl BstNode {
             return node.clone();
         }
         return BstNode::get_root(&parent.unwrap());
+    }
+
+        /**
+     * Return the root of a node, but this time it didn't clone
+     */
+    fn get_root_no_clone(node: &BstNodeLink) -> BstNodeLink {
+        match BstNode::upgrade_weak_to_strong(node.borrow().parent.clone()) {
+            None => Rc::clone(node),
+            Some(parent) => BstNode::get_root(&parent),
+        }
     }
 
     /**
@@ -192,6 +353,16 @@ impl BstNode {
         }
     }
 
+     /**
+     * private function return true if node doesn't have any key in it
+     */
+    fn is_nil_key(node: &Option<BstNodeLink>) -> bool {
+        match node {
+            None => true,
+            Some(rc_node) => rc_node.borrow().key.is_none(),
+        }
+    }
+
     //helper function to compare both nodelink
     fn is_node_match_option(node1: Option<BstNodeLink>, node2: Option<BstNodeLink>) -> bool {
         if node1.is_none() && node2.is_none() {
@@ -216,7 +387,10 @@ impl BstNode {
     fn upgrade_weak_to_strong(node: Option<WeakBstNodeLink>) -> Option<BstNodeLink> {
         match node {
             None => None,
-            Some(x) => Some(x.upgrade().unwrap()),
+            //Some(x) => Some(x.upgrade().unwrap()),
+
+            //fixed weak_to_Strong since it causes error when unwrapping the node
+            Some(x) => x.upgrade(),
         }
     }
 }

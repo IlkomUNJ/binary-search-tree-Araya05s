@@ -19,6 +19,29 @@ fn test_binary_search_tree(){
     rootlink.borrow_mut().add_left_child(&rootlink, 6);
     rootlink.borrow_mut().add_right_child(&rootlink, 18);
 
+    
+    //Test of Insertion
+    BstNode::tree_insert_iterative(&rootlink, 17);
+    BstNode::tree_insert_iterative(&rootlink, 12);
+    BstNode::tree_insert_iterative(&rootlink, 20);
+    BstNode::tree_insert_iterative(&rootlink, 7);
+    BstNode::tree_insert_iterative(&rootlink, 13);
+    BstNode::tree_insert_iterative(&rootlink, 9);
+    BstNode::tree_insert_iterative(&rootlink, 3);
+    BstNode::tree_insert_iterative(&rootlink, 2);
+    BstNode::tree_insert_iterative(&rootlink, 4);
+
+    //Test of Deletion
+    BstNode::deletion(&rootlink, 20);
+    BstNode::deletion(&rootlink, 18);
+    BstNode::deletion(&rootlink, 17);
+    BstNode::deletion(&rootlink, 4);
+
+    BstNode::tree_insert_iterative(&rootlink, 18);
+    BstNode::tree_insert_iterative(&rootlink, 17);
+    BstNode::tree_insert_iterative(&rootlink, 4);
+    BstNode::tree_insert_iterative(&rootlink, 20);
+    /* 
     //add right subtree
     let right_subtree: &Option<BstNodeLink> = &rootlink.borrow().right;
     if let Some(right_tree_extract) = right_subtree {
@@ -57,13 +80,13 @@ fn test_binary_search_tree(){
             }
         }
     }
-
+    */
     //print the tree at this time
     let main_tree_path = "bst_graph.dot";
     generate_dotfile_bst(&rootlink, main_tree_path);
 
     //tree search test
-    let search_keys = vec![15, 9, 22];
+    let search_keys = vec![15, 9, 22, 25, 18];
 
     for &key in search_keys.iter() {
         print!("tree search result of key {} is ", key);
@@ -83,6 +106,8 @@ fn test_binary_search_tree(){
     let max_node = rootlink.borrow().maximum();
     println!("maximum result {:?}", max_node.borrow().key);
 
+    println!("Max Node: {:?}", max_node);
+
     //root node get test
     let root_node = BstNode::get_root(&max_node);
     println!("root node {:?}", root_node.borrow().key);
@@ -99,6 +124,7 @@ fn test_binary_search_tree(){
         22 // non-existent key
     ];
 
+    /*/
     for &key in query_keys.iter() {
         if let Some(node) = rootlink.borrow().tree_search(&key) {
             print!("successor of node ({}) is ", key);
@@ -112,6 +138,7 @@ fn test_binary_search_tree(){
             println!("node with key of {} does not exist, failed to get successor", key)
         }
     }
+    */
 }
 
 #[allow(dead_code)]
